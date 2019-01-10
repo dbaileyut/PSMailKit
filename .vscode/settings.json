@@ -14,7 +14,7 @@
     "editor.tabSize": 4, // Default: 4
 
     // Use spaces not tabs
-    "editor.insertSpaces": false,  // Default: true
+    "editor.insertSpaces": true,  // Default: true
 
     // When enabled, will trim trailing whitespace when you save a file.
     "files.trimTrailingWhitespace": true,  // Default: false

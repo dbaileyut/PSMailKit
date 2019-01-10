@@ -33,7 +33,7 @@ Copyright = '(c) 2019 Doug Bailey. All rights reserved.'
 Description = 'Implements PowerShell email cmdlets with MailKit'
 
 # Minimum version of the Windows PowerShell engine required by this module
-# PowerShellVersion = ''
+PowerShellVersion = '3.0'
 
 # Name of the Windows PowerShell host required by this module
 # PowerShellHostName = ''
@@ -54,7 +54,11 @@ Description = 'Implements PowerShell email cmdlets with MailKit'
 # RequiredModules = @()
 
 # Assemblies that must be loaded prior to importing this module
-# RequiredAssemblies = @()
+RequiredAssemblies = @(
+    "$PSScriptRoot\resources\MailKit.2.1.2\lib\net45\MailKit.dll"
+    "$PSScriptRoot\resources\MimeKit.2.1.2\lib\net45\MimeKit.dll"
+    "$PSScriptRoot\resources\BouncyCastle.1.8.2\lib\BouncyCastle.Crypto.dll"
+)
 
 # Script files (.ps1) that are run in the caller's environment prior to importing this module.
 # ScriptsToProcess = @()
