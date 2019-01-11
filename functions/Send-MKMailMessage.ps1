@@ -7,27 +7,34 @@
     Uses https://www.nuget.org/packages/MailKit/ to faciliitate SMIME
 
 .EXAMPLE
-    Send-MKMailMessage -To "User01 <user01@example.com>" -From "User02 <user02@example.com>" -Subject "Test mail"
+    Send-MKMailMessage -To "User01 <user01@example.com>" -From "User02 <user02@example.com>" -Subject "Test mail" -SMIME Sign
 
     This command sends an email message from User01 to User02.
 
     The mail message has a subject, which is required, but it does not have a body, which is optional. Also, because the SmtpServer parameter is not specified, Send-MKMailMessage uses the value of
     the $PSEmailServer preference variable for the SMTP server.
+
+    Signs the email if a valid signing certificate and key is found in the current user's certificate store.
 .EXAMPLE
     Send-MKMailMessage -From "User01 <user01@example.com>" -To "User02 <user02@example.com>", "User03 <user03@example.com>" -Subject "Sending the Attachment" -Body "Forgot to send the
-    attachment. Sending now." -Attachments "data.csv" -Priority High -dno onSuccess, onFailure -SmtpServer "smtp.fabrikam.com"
+    attachment. Sending now." -Attachments "data.csv" -Priority High -SmtpServer "smtp.fabrikam.com" -SMIME SignAndEncrypt -CertStore LocalMachine
 
     This command sends an email message with an attachment from User01 to two other users.
 
-    It specifies a priority value of High and requests a delivery notification by email when the email messages are delivered or when they fail.
+    It specifies a priority value of High.
+
+    SMIME encrypts and signs if there's a valid signing certificate and key for the from address and the recipients' certificates can be found as well in
+    the LocalMachine certificate store.
 
 .EXAMPLE
     Send-MKMailMessage -To "User01 <user01@example.com>" -From "ITGroup <itdept@example.com>" -Cc "User02 <user02@example.com>" -bcc "ITMgr <itmgr@example.com>" -Subject "Don't forget today's
-    meeting!" -Credential domain01\admin01 -UseSsl
+    meeting!" -Credential domain01\admin01 -UseSsl -SMIME Sign -CertStore LocalMachine
 
     This command sends an email message from User01 to the ITGroup mailing list with a copy (Cc) to User02 and a blind carbon copy (Bcc) to the IT manager (ITMgr).
 
     The command uses the credentials of a domain administrator and the UseSsl parameter.
+
+    SMIME signs if there's a valid signing certificate and key for the from address in the LocalMachine certificate store.
 .INPUTS
     System.String
         You can pipe the path and file names of attachments to Send-MKMailMessage
@@ -64,7 +71,7 @@ function Send-MKMailMessage {
             [ValidateNotNullOrEmpty()]
         [System.String[]] $Bcc,
 
-        # Message body
+        # Message body text
         [Parameter(Mandatory=$False,
                 Position=2,
                 ValueFromPipeline=$False,
@@ -101,7 +108,7 @@ function Send-MKMailMessage {
             [ValidateNotNullOrEmpty()]
         [System.String[]] $Cc,
 
-        # Certificate store for signing/encrypting
+        # Certificate store for signing/encrypting certificates
         [Parameter(Mandatory=$False,
                 Position=-214748,
                 ValueFromPipeline=$False,
@@ -133,7 +140,7 @@ function Send-MKMailMessage {
             [ValidateNotNullOrEmpty()]
         [System.String] $From,
 
-        # DNS or IP of the SMTP Server
+        # DNS or IP address of the SMTP Server
         [Parameter(Mandatory=$False,
                 Position=3,
                 ValueFromPipeline=$False,
@@ -168,7 +175,7 @@ function Send-MKMailMessage {
                 ValueFromPipeline=$False,
                 ValueFromPipelineByPropertyName=$False,
                 ValueFromRemainingArguments=$False)]
-            [ValidateSet('Sign','Encrypt')]
+            [ValidateSet('Sign','SignAndEncrypt')]
         [String] $SMIME,
 
         # To addresses
@@ -209,15 +216,15 @@ function Send-MKMailMessage {
 
     begin {
 
-        function Add-MKAddress ($AddressList, $AddressField, $Message) {
+        function Add-MKAddress ($AddressList, $AddressHeader, $Message) {
             foreach ($Addr in $AddressList) {
                 try {
-                    $Message.$AddressField.Add($Addr)
+                    $Message.$AddressHeader.Add($Addr)
                 } catch {
-                    throw "Failed to add $AddressField address: `"$Addr`": $_"
+                    throw "Failed to add $AddressHeader address: `"$Addr`": $_"
                 }
             }
-            Write-Verbose ("$AddressField`: " + $Message.$AddressField)
+            Write-Verbose ("$AddressHeader`: " + $Message.$AddressHeader)
         }
 
         function Get-MKPriority ([System.Net.Mail.MailPriority] $DotNetPriority) {
@@ -244,32 +251,20 @@ function Send-MKMailMessage {
         # Build message
         $Message = [MimeKit.MimeMessage]::new()
 
-        try {
-            Add-MKAddress $From 'From' $Message
-        } catch {
-            Write-Error $_
-            return
-        }
+        $AddressHeaders = @(
+            'From'
+            'To'
+            'Cc'
+            'Bcc'
+        )
 
-        try {
-            Add-MKAddress $To 'To' $Message
-        } catch {
-            Write-Error $_
-            return
-        }
-
-        try {
-            Add-MKAddress $Cc 'Cc' $Message
-        } catch {
-            Write-Error $_
-            return
-        }
-
-        try {
-            Add-MKAddress $Bcc 'Bcc' $Message
-        } catch {
-            Write-Error $_
-            return
+        foreach ($Header in $AddressHeaders) {
+            try {
+                Add-MKAddress $From $Header $Message
+            } catch {
+                Write-Error $_
+                return
+            }
         }
 
         $Message.Subject = $Subject
@@ -305,7 +300,7 @@ function Send-MKMailMessage {
         foreach ($Attachment in $Attachments) {
             if (Test-Path $Attachment -PathType Leaf) {
                 try {
-                    $MKAttachmentResult = $Builder.Attachments.Add($Attachment)
+                    $MimeAttachment = $Builder.Attachments.Add($Attachment)
                 } catch {
                     Write-Error "Failed to add attachment `"$Attachment`" to message body object."
                     $AttachmentFails += $Attachment
@@ -322,8 +317,8 @@ function Send-MKMailMessage {
             $Message.Body = $Builder.ToMessageBody()
 
             if ($Encoding) {
-                # Eh, not sure if this is the right thing...
-                $Message.Headers['Subject'] = [MimeKit.Header]::new('utf-16','Subject',$Subject)
+                # Eh, not sure if this is the right thing... need to test
+                $Message.Headers['Subject'] = [MimeKit.Header]::new($Encoding,'Subject',$Subject)
                 foreach ($BodyPart in $Message.BodyParts) {
                     if (($BodyPart.IsPlain -or $BodyPart.IsHtml) -and -not $BodyPart.IsAttachment) {
                         $BodyPart.ContentType.Charset = $Encoding
@@ -349,11 +344,11 @@ function Send-MKMailMessage {
                         return
                     }
                 }
-                "Encrypt" {
+                "SignAndEncrypt" {
                     try {
                         $Message.SignAndEncrypt($Ctx, [MimeKit.Cryptography.DigestAlgorithm]::Sha256)
                     } catch {
-                        Write-Error "Failed to encrypt the message: $_"
+                        Write-Error "Failed to sign and encrypt the message: $_"
                         return
                     }
                 }
