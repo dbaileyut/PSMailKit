@@ -8,6 +8,6 @@ if (-not $NugetCmd) {
 
 & '..\..\..\downloads\nuget.exe' install MailKit
 
-dir .\*\lib\* -Directory | ? {$_.Name -notmatch "^(net45$|portable-)"} | Remove-Item -Recurse
+dir .\M*Kit*\lib\* -Directory | ? {$_.Name -notmatch "^(net45$|portable-)"} | Remove-Item -Recurse
 
 Pop-Location
