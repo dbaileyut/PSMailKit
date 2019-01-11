@@ -2,19 +2,19 @@
 .SYNOPSIS
     Send mail message using MailKit library
 .DESCRIPTION
-    The Send-MailMessage cmdlet sends an email message from within Windows PowerShell.
+    The Send-MKMailMessage cmdlet sends an email message from within Windows PowerShell.
 
     Uses https://www.nuget.org/packages/MailKit/ to faciliitate SMIME
 
 .EXAMPLE
-    Send-MailMessage -To "User01 <user01@example.com>" -From "User02 <user02@example.com>" -Subject "Test mail"
+    Send-MKMailMessage -To "User01 <user01@example.com>" -From "User02 <user02@example.com>" -Subject "Test mail"
 
     This command sends an email message from User01 to User02.
 
-    The mail message has a subject, which is required, but it does not have a body, which is optional. Also, because the SmtpServer parameter is not specified, Send-MailMessage uses the value of
+    The mail message has a subject, which is required, but it does not have a body, which is optional. Also, because the SmtpServer parameter is not specified, Send-MKMailMessage uses the value of
     the $PSEmailServer preference variable for the SMTP server.
 .EXAMPLE
-    Send-MailMessage -From "User01 <user01@example.com>" -To "User02 <user02@example.com>", "User03 <user03@example.com>" -Subject "Sending the Attachment" -Body "Forgot to send the
+    Send-MKMailMessage -From "User01 <user01@example.com>" -To "User02 <user02@example.com>", "User03 <user03@example.com>" -Subject "Sending the Attachment" -Body "Forgot to send the
     attachment. Sending now." -Attachments "data.csv" -Priority High -dno onSuccess, onFailure -SmtpServer "smtp.fabrikam.com"
 
     This command sends an email message with an attachment from User01 to two other users.
@@ -22,7 +22,7 @@
     It specifies a priority value of High and requests a delivery notification by email when the email messages are delivered or when they fail.
 
 .EXAMPLE
-    Send-MailMessage -To "User01 <user01@example.com>" -From "ITGroup <itdept@example.com>" -Cc "User02 <user02@example.com>" -bcc "ITMgr <itmgr@example.com>" -Subject "Don't forget today's
+    Send-MKMailMessage -To "User01 <user01@example.com>" -From "ITGroup <itdept@example.com>" -Cc "User02 <user02@example.com>" -bcc "ITMgr <itmgr@example.com>" -Subject "Don't forget today's
     meeting!" -Credential domain01\admin01 -UseSsl
 
     This command sends an email message from User01 to the ITGroup mailing list with a copy (Cc) to User02 and a blind carbon copy (Bcc) to the IT manager (ITMgr).
@@ -30,7 +30,7 @@
     The command uses the credentials of a domain administrator and the UseSsl parameter.
 .INPUTS
     System.String
-        You can pipe the path and file names of attachments to Send-MailMessage
+        You can pipe the path and file names of attachments to Send-MKMailMessage
 .OUTPUTS
     None
         This cmdlet does not generate any output.
@@ -45,36 +45,145 @@ function Send-MKMailMessage {
                    ConfirmImpact='Medium')]
     [Alias()]
     Param (
-        # Param1 help description
-        [Parameter(Mandatory=$true,
-                   Position=0,
-                   ValueFromPipeline=$true,
-                   ValueFromPipelineByPropertyName=$true,
-                   ValueFromRemainingArguments=$false,
-                   ParameterSetName='Parameter Set 1')]
-        [ValidateNotNull()]
-        [ValidateNotNullOrEmpty()]
-        [ValidateCount(0,5)]
-        [ValidateSet("sun", "moon", "earth")]
-        [Alias("p1")]
-        $Param1,
+        # Paths to attachments
+        [Parameter(Mandatory=$False,
+                Position=-2147483648,
+                ValueFromPipeline=$True,
+                ValueFromPipelineByPropertyName=$False,
+                ValueFromRemainingArguments=$False)]
+            [ValidateNotNullOrEmpty()]
+            [Alias("PsPath")]
+        [System.String[]] $Attachments,
 
-        # Param2 help description
-        [Parameter(ParameterSetName='Parameter Set 1')]
-        [AllowNull()]
-        [AllowEmptyCollection()]
-        [AllowEmptyString()]
-        [ValidateScript({$true})]
-        [ValidateRange(0,5)]
-        [int]
-        $Param2,
+        # Blind CC addresses
+        [Parameter(Mandatory=$False,
+                Position=-2147483648,
+                ValueFromPipeline=$False,
+                ValueFromPipelineByPropertyName=$False,
+                ValueFromRemainingArguments=$False)]
+            [ValidateNotNullOrEmpty()]
+        [System.String[]] $Bcc,
 
-        # Param3 help description
-        [Parameter(ParameterSetName='Another Parameter Set')]
-        [ValidatePattern("[a-z]*")]
-        [ValidateLength(0,15)]
-        [String]
-        $Param3
+        # Message body
+        [Parameter(Mandatory=$False,
+                Position=2,
+                ValueFromPipeline=$False,
+                ValueFromPipelineByPropertyName=$False,
+                ValueFromRemainingArguments=$False)]
+            [ValidateNotNullOrEmpty()]
+        [System.String] $Body,
+
+        # Whether the message body is in HTML
+        [Parameter(Mandatory=$False,
+                Position=-2147483648,
+                ValueFromPipeline=$False,
+                ValueFromPipelineByPropertyName=$False,
+                ValueFromRemainingArguments=$False)]
+            [Alias("BAH")]
+        [Switch] $BodyAsHtml,
+
+        # Body encoding
+        [Parameter(Mandatory=$False,
+                Position=-2147483648,
+                ValueFromPipeline=$False,
+                ValueFromPipelineByPropertyName=$False,
+                ValueFromRemainingArguments=$False)]
+            [ValidateNotNullOrEmpty()]
+            [Alias("BE")]
+        [System.Text.Encoding] $Encoding,
+
+        # Carbon copy addresses
+        [Parameter(Mandatory=$False,
+                Position=-2147483648,
+                ValueFromPipeline=$False,
+                ValueFromPipelineByPropertyName=$False,
+                ValueFromRemainingArguments=$False)]
+            [ValidateNotNullOrEmpty()]
+        [System.String[]] $Cc,
+
+        # Delivery notification options
+        [Parameter(Mandatory=$False,
+                Position=-2147483648,
+                ValueFromPipeline=$False,
+                ValueFromPipelineByPropertyName=$False,
+                ValueFromRemainingArguments=$False)]
+            [ValidateNotNullOrEmpty()]
+            [Alias("DNO")]
+        [System.Net.Mail.DeliveryNotificationOptions] $DeliveryNotificationOption,
+
+        # From address - use format "Display Name <emailaddr@blah.com>"
+        # or just emailaddr@blah.com
+        [Parameter(Mandatory=$True,
+                Position=-2147483648,
+                ValueFromPipeline=$False,
+                ValueFromPipelineByPropertyName=$False,
+                ValueFromRemainingArguments=$False)]
+            [ValidateNotNullOrEmpty()]
+        [System.String] $From,
+
+        # DNS or IP of the SMTP Server
+        [Parameter(Mandatory=$False,
+                Position=3,
+                ValueFromPipeline=$False,
+                ValueFromPipelineByPropertyName=$False,
+                ValueFromRemainingArguments=$False)]
+            [ValidateNotNullOrEmpty()]
+            [Alias("ComputerName")]
+        [System.String] $SmtpServer,
+
+        # Mail message priority
+        [Parameter(Mandatory=$False,
+                Position=-2147483648,
+                ValueFromPipeline=$False,
+                ValueFromPipelineByPropertyName=$False,
+                ValueFromRemainingArguments=$False)]
+            [ValidateNotNullOrEmpty()]
+        [System.Net.Mail.MailPriority] $Priority,
+
+        # Message subject
+        [Parameter(Mandatory=$True,
+                Position=1,
+                ValueFromPipeline=$False,
+                ValueFromPipelineByPropertyName=$False,
+                ValueFromRemainingArguments=$False)]
+            [ValidateNotNullOrEmpty()]
+            [Alias("sub")]
+        [System.String] $Subject,
+
+        # To addresses
+        [Parameter(Mandatory=$True,
+                Position=0,
+                ValueFromPipeline=$False,
+                ValueFromPipelineByPropertyName=$False,
+                ValueFromRemainingArguments=$False)]
+            [ValidateNotNullOrEmpty()]
+        [System.String[]] $To,
+
+        # Credentials for the SMTP Server
+        [Parameter(Mandatory=$False,
+                Position=-2147483648,
+                ValueFromPipeline=$False,
+                ValueFromPipelineByPropertyName=$False,
+                ValueFromRemainingArguments=$False)]
+            [ValidateNotNullOrEmpty()]
+        [PSCredential] $Credential,
+
+        # Whether the SMTP server requires SSL
+        [Parameter(Mandatory=$False,
+                Position=-2147483648,
+                ValueFromPipeline=$False,
+                ValueFromPipelineByPropertyName=$False,
+                ValueFromRemainingArguments=$False)]
+        [Switch] $UseSsl,
+
+        # SMTP Server port number
+        [Parameter(Mandatory=$False,
+                Position=-2147483648,
+                ValueFromPipeline=$False,
+                ValueFromPipelineByPropertyName=$False,
+                ValueFromRemainingArguments=$False)]
+            [ValidateRange(0, 2147483647)]
+        [System.Int32] $Port
     )
 
     begin {
