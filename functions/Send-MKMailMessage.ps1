@@ -129,7 +129,7 @@ function Send-MKMailMessage {
                 ValueFromRemainingArguments=$False)]
             [ValidateNotNullOrEmpty()]
             [Alias("ComputerName")]
-        [System.String] $SmtpServer,
+        [System.String] $SmtpServer = $PSEmailServer,
 
         # Mail message priority
         [Parameter(Mandatory=$False,
@@ -183,18 +183,57 @@ function Send-MKMailMessage {
                 ValueFromPipelineByPropertyName=$False,
                 ValueFromRemainingArguments=$False)]
             [ValidateRange(0, 2147483647)]
-        [System.Int32] $Port
+        [System.Int32] $Port = 25
     )
 
     begin {
+        # Smtp Connection
+        if ($SmtpServer -match "^\s*$") {
+            Write-Error "SmtpServer was empty or null. Specify the parameter or set `$PSEmailServer."
+            return
+        }
+        $SmtpClient = [MailKit.Net.Smtp.SmtpClient]::new()
+        $SecureSocketOptions = $null
+        if ($UseSsl) {
+            $SecureSocketOptions = 'Auto'
+        }
+        try {
+            Write-Verbose "Connecting to `"$SmtpServer`" on port $Port. UseSSL: $UseSSL"
+            $SmtpClient.Connect( $SmtpServer, $Port, $SecureSocketOptions )
+        } catch {
+            Write-Error "Failed to connenct to `"$SmtpServer`":`r`n$_"
+        }
+
+        if ($Credential) {
+            $SmtpClient.Authenticate($Credential)
+        }
+
+        $AttachmentArr = @()
+        $AttachmentErr = $false
     }
 
     process {
-        if ($pscmdlet.ShouldProcess("Target", "Operation")) {
-
+        foreach ($Attachment in $Attachments) {
+            if (Test-Path $Attachment -PathType Leaf) {
+                $AttachmentArr += $Attachment
+            } else {
+                Write-Error "Attachment `"$Attachment`" does not exist or is not a file."
+                $AttachmentErr = $true
+            }
         }
     }
 
     end {
+        if (-not $AttachmentErr) {
+            if ($pscmdlet.ShouldProcess("Target", "Operation")) {
+
+            }
+        }
+
+        try {
+            $SmtpClient.Disconnect($true)
+        } catch {
+            Write-Error "Failed to disconnect cleanly from `"$SmtpServer`""
+        }
     }
 }
