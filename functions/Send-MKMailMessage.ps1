@@ -101,6 +101,15 @@ function Send-MKMailMessage {
             [ValidateNotNullOrEmpty()]
         [System.String[]] $Cc,
 
+        # Certificate store for signing/encrypting
+        [Parameter(Mandatory=$False,
+                Position=-214748,
+                ValueFromPipeline=$False,
+                ValueFromPipelineByPropertyName=$False,
+                ValueFromRemainingArguments=$False)]
+            [ValidateNotNullOrEmpty()]
+        [System.Security.Cryptography.X509Certificates.StoreLocation] $CertStore = 'CurrentUser',
+
         <#
         To Implement? MailKit doesn't seem to have an easy property for this
         #Delivery notification options
@@ -152,6 +161,15 @@ function Send-MKMailMessage {
             [ValidateNotNullOrEmpty()]
             [Alias("sub")]
         [System.String] $Subject,
+
+        # SMIME Sign or Sign and Encrypt
+        [Parameter(Mandatory=$false,
+                Position=-345,
+                ValueFromPipeline=$False,
+                ValueFromPipelineByPropertyName=$False,
+                ValueFromRemainingArguments=$False)]
+            [ValidateSet('Sign','Encrypt')]
+        [String] $SMIME,
 
         # To addresses
         [Parameter(Mandatory=$True,
@@ -270,30 +288,17 @@ function Send-MKMailMessage {
             return
         }
 
-        $Builder.TextBody
-
-
-        # Smtp Connection
+        # Confirm we have an SMTP server
         if ($SmtpServer -match "^\s*$") {
             Write-Error "SmtpServer was empty or null. Specify the parameter or set `$PSEmailServer."
             return
         }
-        $SmtpClient = [MailKit.Net.Smtp.SmtpClient]::new()
-        $SecureSocketOptions = $null
-        if ($UseSsl) {
-            $SecureSocketOptions = 'Auto'
-        }
-        try {
-            Write-Verbose "Connecting to `"$SmtpServer`" on port $Port. UseSSL: $UseSSL"
-            $SmtpClient.Connect( $SmtpServer, $Port, $SecureSocketOptions )
-        } catch {
-            Write-Error "Failed to connenct to `"$SmtpServer`":`r`n$_"
+
+        if ($SMIME) {
+            # Create security context
+            $Ctx = [MimeKit.Cryptography.WindowsSecureMimeContext]::new($CertStore)
         }
 
-        if ($Credential) {
-            Write-Verbose "Authenticating to `"$SmtpServer`" with `"$($Credential.UserName)`""
-            $SmtpClient.Authenticate($Credential)
-        }
     }
 
     process {
@@ -333,6 +338,43 @@ function Send-MKMailMessage {
                 } else {
                     Write-Error "Failed to convert `"$Priority`" to MailKit enum."
                 }
+            }
+
+            switch ($SMIME) {
+                "Sign" {
+                    try {
+                        $Message.Sign($Ctx, [MimeKit.Cryptography.DigestAlgorithm]::Sha256)
+                    } catch {
+                        Write-Error "Failed to sign the message: $_"
+                        return
+                    }
+                }
+                "Encrypt" {
+                    try {
+                        $Message.SignAndEncrypt($Ctx, [MimeKit.Cryptography.DigestAlgorithm]::Sha256)
+                    } catch {
+                        Write-Error "Failed to encrypt the message: $_"
+                        return
+                    }
+                }
+            }
+
+            # Smtp Connection
+            $SmtpClient = [MailKit.Net.Smtp.SmtpClient]::new()
+            $SecureSocketOptions = $null
+            if ($UseSsl) {
+                $SecureSocketOptions = 'Auto'
+            }
+            try {
+                Write-Verbose "Connecting to `"$SmtpServer`" on port $Port. UseSSL: $UseSSL"
+                $SmtpClient.Connect( $SmtpServer, $Port, $SecureSocketOptions )
+            } catch {
+                Write-Error "Failed to connenct to `"$SmtpServer`":`r`n$_"
+            }
+
+            if ($Credential) {
+                Write-Verbose "Authenticating to `"$SmtpServer`" with `"$($Credential.UserName)`""
+                $SmtpClient.Authenticate($Credential)
             }
 
             if ($pscmdlet.ShouldProcess("Target", "Operation")) {
