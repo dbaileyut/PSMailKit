@@ -101,7 +101,9 @@ function Send-MKMailMessage {
             [ValidateNotNullOrEmpty()]
         [System.String[]] $Cc,
 
-        # Delivery notification options
+        <#
+        To Implement? MailKit doesn't seem to have an easy property for this
+        #Delivery notification options
         [Parameter(Mandatory=$False,
                 Position=-2147483648,
                 ValueFromPipeline=$False,
@@ -110,6 +112,7 @@ function Send-MKMailMessage {
             [ValidateNotNullOrEmpty()]
             [Alias("DNO")]
         [System.Net.Mail.DeliveryNotificationOptions] $DeliveryNotificationOption,
+        #>
 
         # From address - use format "Display Name <emailaddr@blah.com>"
         # or just emailaddr@blah.com
@@ -187,6 +190,89 @@ function Send-MKMailMessage {
     )
 
     begin {
+
+        function Add-MKAddress ($AddressList, $AddressField, $Message) {
+            foreach ($Addr in $AddressList) {
+                try {
+                    $Message.$AddressField.Add($Addr)
+                } catch {
+                    throw "Failed to add $AddressField address: `"$Addr`": $_"
+                }
+            }
+            Write-Verbose ("$AddressField`: " + $Message.$AddressField)
+        }
+
+        function Get-MKPriority ([System.Net.Mail.MailPriority] $DotNetPriority) {
+            switch ($DotNetPriority) {
+                [System.Net.Mail.MailPriority]::High {
+                    return [MimeKit.MessagePriority]::Urgent
+                }
+                [System.Net.Mail.MailPriority]::Low {
+                    return [MimeKit.MessagePriority]::NonUrgent
+                }
+                [System.Net.Mail.MailPriority]::Normal {
+                    return [MimeKit.MessagePriority]::Normal
+                }
+                default {
+                    return $null
+                }
+            }
+
+        }
+
+        # Initialize attachement variables since we have to process the pipeline
+        $AttachmentFails = @()
+
+        # Build message
+        $Message = [MimeKit.MimeMessage]::new()
+
+        try {
+            Add-MKAddress $From 'From' $Message
+        } catch {
+            Write-Error $_
+            return
+        }
+
+        try {
+            Add-MKAddress $To 'To' $Message
+        } catch {
+            Write-Error $_
+            return
+        }
+
+        try {
+            Add-MKAddress $Cc 'Cc' $Message
+        } catch {
+            Write-Error $_
+            return
+        }
+
+        try {
+            Add-MKAddress $Bcc 'Bcc' $Message
+        } catch {
+            Write-Error $_
+            return
+        }
+
+        $Message.Subject = $Subject
+        Write-Verbose ("Subject: " + $Message.Subject )
+
+        $Builder = [MimeKit.BodyBuilder]::new()
+
+        try {
+            if ($BodyAsHtml) {
+                $Builder.HtmlBody = $Body
+            } else {
+                $Builder.TextBody = $Body
+            }
+        } catch {
+            Write-Error "Failed to add body.`r`n$_"
+            return
+        }
+
+        $Builder.TextBody
+
+
         # Smtp Connection
         if ($SmtpServer -match "^\s*$") {
             Write-Error "SmtpServer was empty or null. Specify the parameter or set `$PSEmailServer."
@@ -205,33 +291,69 @@ function Send-MKMailMessage {
         }
 
         if ($Credential) {
+            Write-Verbose "Authenticating to `"$SmtpServer`" with `"$($Credential.UserName)`""
             $SmtpClient.Authenticate($Credential)
         }
-
-        $AttachmentArr = @()
-        $AttachmentErr = $false
     }
 
     process {
         foreach ($Attachment in $Attachments) {
             if (Test-Path $Attachment -PathType Leaf) {
-                $AttachmentArr += $Attachment
+                try {
+                    $MKAttachmentResult = $Builder.Attachments.Add($Attachment)
+                } catch {
+                    Write-Error "Failed to add attachment `"$Attachment`" to message body object."
+                    $AttachmentFails += $Attachment
+                }
             } else {
-                Write-Error "Attachment `"$Attachment`" does not exist or is not a file."
-                $AttachmentErr = $true
+                $AttachmentFails += $Attachment
             }
         }
     }
 
     end {
-        if (-not $AttachmentErr) {
-            if ($pscmdlet.ShouldProcess("Target", "Operation")) {
+        if ($AttachmentFails.Count -eq 0) {
 
+            $Message.Body = $Builder.ToMessageBody()
+
+            if ($Encoding) {
+                # Eh, not sure if this is the right thing...
+                $Message.Headers['Subject'] = [MimeKit.Header]::new('utf-16','Subject',$Subject)
+                foreach ($BodyPart in $Message.BodyParts) {
+                    if (($BodyPart.IsPlain -or $BodyPart.IsHtml) -and -not $BodyPart.IsAttachment) {
+                        $BodyPart.ContentType.Charset = $Encoding
+                    }
+                }
             }
+
+            if ($Priority) {
+                $MKPriority = Get-MKPriority $Priority
+                if ($null -ne $MKPriority) {
+                    $Message.Priority = $MKPriority
+                } else {
+                    Write-Error "Failed to convert `"$Priority`" to MailKit enum."
+                }
+            }
+
+            if ($pscmdlet.ShouldProcess("Target", "Operation")) {
+                try {
+                    Write-Verbose "Sending message..."
+                    $SmtpClient.Send($Message)
+                } catch {
+                    Write-Error "Failed to send message:`r`n$_"
+                }
+            }
+        } else {
+            Write-Error ("The following attachment paths are not valid files:`r`n" +
+                "`t`"" + ($AttachmentFails -join "`"`r`n`t`"") + '"'
+            )
         }
 
         try {
-            $SmtpClient.Disconnect($true)
+            if ($SmtpClient) {
+                Write-Verbose "Disconnecting from `"$SmtpServer`""
+                $SmtpClient.Disconnect($true)
+            }
         } catch {
             Write-Error "Failed to disconnect cleanly from `"$SmtpServer`""
         }
