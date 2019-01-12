@@ -55,9 +55,9 @@ PowerShellVersion = '3.0'
 
 # Assemblies that must be loaded prior to importing this module
 RequiredAssemblies = @(
-    "$PSScriptRoot\resources\MailKit.2.1.2\lib\net45\MailKit.dll"
-    "$PSScriptRoot\resources\MimeKit.2.1.2\lib\net45\MimeKit.dll"
-    "$PSScriptRoot\resources\BouncyCastle.1.8.2\lib\BouncyCastle.Crypto.dll"
+    "$PSScriptRoot\resources\nuget\MailKit.2.1.2\lib\net45\MailKit.dll"
+    "$PSScriptRoot\resources\nuget\MimeKit.2.1.2\lib\net45\MimeKit.dll"
+    "$PSScriptRoot\resources\nuget\BouncyCastle.1.8.2\lib\BouncyCastle.Crypto.dll"
 )
 
 # Script files (.ps1) that are run in the caller's environment prior to importing this module.
