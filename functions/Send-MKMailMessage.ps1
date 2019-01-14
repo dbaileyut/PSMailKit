@@ -251,16 +251,16 @@ function Send-MKMailMessage {
         # Build message
         $Message = [MimeKit.MimeMessage]::new()
 
-        $AddressHeaders = @(
-            'From'
-            'To'
-            'Cc'
-            'Bcc'
-        )
+        $AddressHeaders = @{
+            'From' = $From
+            'To'   = $To
+            'Cc'   = $Cc
+            'Bcc'  = $Bcc
+        }
 
-        foreach ($Header in $AddressHeaders) {
+        foreach ($Header in $AddressHeaders.Keys) {
             try {
-                Add-MKAddress $From $Header $Message
+                Add-MKAddress $AddressHeaders[$Header] $Header $Message
             } catch {
                 Write-Error $_
                 return
