@@ -10,6 +10,4 @@ Remove-Item .\nuget\* -Recurse
 
 nuget.exe install MailKit -NoCache -NonInteractive
 
-Get-ChildItem .\nuget\M*Kit*\lib\* -Directory | ? {$_.Name -notmatch "^(net45$|portable-)"} | Remove-Item -Recurse
-
 Pop-Location
