@@ -71,7 +71,13 @@ function Send-MKMailMessage {
             [ValidateNotNullOrEmpty()]
         [System.String[]] $Bcc,
 
-        # Message body text
+        <#
+            Message body text. If the body is HTML, -BodyAsHTML needs to be specified.
+            The HTML can include <img> tags with src attributes using local paths to
+            the image files. These will be embeded in the MIME message.
+
+            Example: <img alt="My alt" src="C:\myimage.png" >
+        #>
         [Parameter(Mandatory=$False,
                 Position=2,
                 ValueFromPipeline=$False,
@@ -274,7 +280,16 @@ function Send-MKMailMessage {
 
         try {
             if ($BodyAsHtml) {
-                $Builder.HtmlBody = $Body
+                $BodyProccessed = $Body
+                if ($Body -match "<img[^>]+src=`"(?<ImgPath>[^`"]+)`"") {
+                    $ImgPaths = $Matches.ImgPath
+                    foreach ($Path in $ImgPaths) {
+                        $image = $Builder.LinkedResources.Add($Path)
+                        $image.ContentId = [MimeKit.Utils.MimeUtils]::GenerateMessageId();
+                        $BodyProccessed = $BodyProccessed.Replace($Path,"cid:" + $image.ContentId)
+                    }
+                }
+                $Builder.HtmlBody = $BodyProccessed
             } else {
                 $Builder.TextBody = $Body
             }
