@@ -373,13 +373,13 @@ function Send-MKMailMessage {
             $SmtpClient = [MailKit.Net.Smtp.SmtpClient]::new()
             $SecureSocketOptions = $null
             if ($UseSsl) {
-                $SecureSocketOptions = 'Auto'
+                $SecureSocketOptions = [MailKit.Security.SecureSocketOptions]::Auto
             }
             try {
                 Write-Verbose "Connecting to `"$SmtpServer`" on port $Port. UseSSL: $UseSSL"
                 $SmtpClient.Connect( $SmtpServer, $Port, $SecureSocketOptions )
             } catch {
-                Write-Error "Failed to connenct to `"$SmtpServer`":`r`n$_"
+                Write-Error "Failed to connect to `"$SmtpServer`":`r`n$_"
             }
 
             if ($Credential) {
