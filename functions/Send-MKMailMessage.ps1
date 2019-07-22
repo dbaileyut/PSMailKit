@@ -193,6 +193,12 @@ function Send-MKMailMessage {
             [ValidateNotNullOrEmpty()]
         [System.String[]] $To,
 
+        # ReplyTo address
+        [Parameter(Mandatory = $True,
+            Position = 0)]
+        [ValidateNotNullOrEmpty()]
+        [System.String[]] $ReplyTo,
+
         # Credentials for the SMTP Server
         [Parameter(Mandatory=$False,
                 Position=-2147483648,
@@ -258,10 +264,11 @@ function Send-MKMailMessage {
         $Message = [MimeKit.MimeMessage]::new()
 
         $AddressHeaders = @{
-            'From' = $From
-            'To'   = $To
-            'Cc'   = $Cc
-            'Bcc'  = $Bcc
+            'From'    = $From
+            'To'      = $To
+            'Cc'      = $Cc
+            'Bcc'     = $Bcc
+            'ReplyTo' = $ReplyTo
         }
 
         foreach ($Header in $AddressHeaders.Keys) {
