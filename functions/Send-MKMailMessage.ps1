@@ -193,7 +193,7 @@ function Send-MKMailMessage {
             [ValidateNotNullOrEmpty()]
         [System.String[]] $To,
 
-        # ReplyTo address
+        # ReplyTo addresses
         [Parameter(Mandatory = $True,
             Position = 0)]
         [ValidateNotNullOrEmpty()]
