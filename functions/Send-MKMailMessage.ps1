@@ -194,8 +194,7 @@ function Send-MKMailMessage {
         [System.String[]] $To,
 
         # ReplyTo addresses
-        [Parameter(Mandatory = $True,
-            Position = 0)]
+        [Parameter(Mandatory = $False)]
         [ValidateNotNullOrEmpty()]
         [System.String[]] $ReplyTo,
 
