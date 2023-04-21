@@ -3,5 +3,6 @@ nuget.exe
 *.csv
 *.log
 *.txt
+!LICENSE.txt
 test/*.json
 test/*.html
