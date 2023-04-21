@@ -1,0 +1,7 @@
+nuget.exe
+.vscode/
+*.csv
+*.log
+*.txt
+test/*.json
+test/*.html
