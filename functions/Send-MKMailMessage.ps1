@@ -261,7 +261,7 @@ function Send-MKMailMessage {
             if (Test-Path $Attachment -PathType Leaf) {
                 $FullPath = (Get-Item $Attachment).FullName
                 try {
-                    $MimeAttachment = $Builder.Attachments.Add($FullPath)
+                    $Builder.Attachments.Add($FullPath) | Out-Null
                 } catch {
                     Write-Error "Failed to add attachment `"$Attachment`" to message body object. $_"
                     $AttachmentFails += $Attachment

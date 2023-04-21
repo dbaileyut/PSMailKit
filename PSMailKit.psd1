@@ -79,16 +79,16 @@ RequiredAssemblies = @(
 # NestedModules = @()
 
 # Functions to export from this module, for best performance, do not use wildcards and do not delete the entry, use an empty array if there are no functions to export.
-FunctionsToExport = '*'
+FunctionsToExport = 'Send-MKMailMessage', 'Send-MkMailMerge'
 
 # Cmdlets to export from this module, for best performance, do not use wildcards and do not delete the entry, use an empty array if there are no cmdlets to export.
-CmdletsToExport = '*'
+# CmdletsToExport = '*'
 
 # Variables to export from this module
-VariablesToExport = '*'
+# VariablesToExport = '*'
 
 # Aliases to export from this module, for best performance, do not use wildcards and do not delete the entry, use an empty array if there are no aliases to export.
-AliasesToExport = '*'
+# AliasesToExport = '*'
 
 # DSC resources to export from this module
 # DscResourcesToExport = @()
@@ -105,13 +105,17 @@ PrivateData = @{
     PSData = @{
 
         # Tags applied to this module. These help with module discovery in online galleries.
-        # Tags = @()
+        Tags = @(
+            'MailKit', 'MailMerge', 'Mail', 'Email', 'SMTP', 'IMAP', 'Send', 'Receive', 'Message', 'Attachment',
+            'MIME', 'Multipart', 'HTML', 'Text', 'Body', 'Subject', 'From', 'To', 'CC', 'BCC', 'ReplyTo',
+            'SMIME', 'Signed', 'Encrypted', 'PSEdition_Desktop', 'PSEdition_Core', 'Windows'
+        )
 
         # A URL to the license for this module.
-        # LicenseUri = ''
+        LicenseUri = 'https://github.com/dbaileyut/PSMailKit/blob/main/LICENSE.txt'
 
         # A URL to the main website for this project.
-        # ProjectUri = ''
+        ProjectUri = 'https://github.com/dbaileyut/PSMailKit'
 
         # A URL to an icon representing this module.
         # IconUri = ''
