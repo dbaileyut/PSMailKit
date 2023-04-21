@@ -36,7 +36,7 @@
 
     SMIME signs if there's a valid signing certificate and key for the from address in the LocalMachine certificate store.
 .INPUTS
-    System.String
+    String
         You can pipe the path and file names of attachments to Send-MKMailMessage
 .OUTPUTS
     None
@@ -51,23 +51,15 @@ function Send-MKMailMessage {
         ConfirmImpact = 'Medium')]
     Param (
         # Paths to attachments
-        [Parameter(Mandatory = $False,
-            Position = -2147483648,
-            ValueFromPipeline = $True,
-            ValueFromPipelineByPropertyName = $False,
-            ValueFromRemainingArguments = $False)]
+        [Parameter(ValueFromPipeline = $True)]
         [ValidateNotNullOrEmpty()]
         [Alias("PsPath")]
-        [System.String[]] $Attachments,
+        [String[]] $Attachments,
 
         # Blind CC addresses
-        [Parameter(Mandatory = $False,
-            Position = -2147483648,
-            ValueFromPipeline = $False,
-            ValueFromPipelineByPropertyName = $False,
-            ValueFromRemainingArguments = $False)]
+        [Parameter()]
         [ValidateNotNullOrEmpty()]
-        [System.String[]] $Bcc,
+        [String[]] $Bcc,
 
         <#
             Message body text. If the body is HTML, -BodyAsHTML needs to be specified.
@@ -76,48 +68,28 @@ function Send-MKMailMessage {
 
             Example: <img alt="My alt" src="C:\myimage.png" >
         #>
-        [Parameter(Mandatory = $False,
-            Position = 2,
-            ValueFromPipeline = $False,
-            ValueFromPipelineByPropertyName = $False,
-            ValueFromRemainingArguments = $False)]
+        [Parameter(Position = 2)]
         [ValidateNotNullOrEmpty()]
-        [System.String] $Body,
+        [String] $Body,
 
         # Whether the message body is in HTML
-        [Parameter(Mandatory = $False,
-            Position = -2147483648,
-            ValueFromPipeline = $False,
-            ValueFromPipelineByPropertyName = $False,
-            ValueFromRemainingArguments = $False)]
+        [Parameter()]
         [Alias("BAH")]
         [Switch] $BodyAsHtml,
 
         # Body encoding
-        [Parameter(Mandatory = $False,
-            Position = -2147483648,
-            ValueFromPipeline = $False,
-            ValueFromPipelineByPropertyName = $False,
-            ValueFromRemainingArguments = $False)]
+        [Parameter()]
         [ValidateNotNullOrEmpty()]
         [Alias("BE")]
         [System.Text.Encoding] $Encoding,
 
         # Carbon copy addresses
-        [Parameter(Mandatory = $False,
-            Position = -2147483648,
-            ValueFromPipeline = $False,
-            ValueFromPipelineByPropertyName = $False,
-            ValueFromRemainingArguments = $False)]
+        [Parameter()]
         [ValidateNotNullOrEmpty()]
-        [System.String[]] $Cc,
+        [String[]] $Cc,
 
         # Certificate store for signing/encrypting certificates
-        [Parameter(Mandatory = $False,
-            Position = -214748,
-            ValueFromPipeline = $False,
-            ValueFromPipelineByPropertyName = $False,
-            ValueFromRemainingArguments = $False)]
+        [Parameter()]
         [ValidateNotNullOrEmpty()]
         [System.Security.Cryptography.X509Certificates.StoreLocation] $CertStore = 'CurrentUser',
 
@@ -137,83 +109,56 @@ function Send-MKMailMessage {
         # From address - use format "Display Name <emailaddr@blah.com>"
         # or just emailaddr@blah.com
         [Parameter(Mandatory = $True,
-            Position = -2147483648,
-            ValueFromPipeline = $False,
-            ValueFromPipelineByPropertyName = $False,
-            ValueFromRemainingArguments = $False)]
+            Position = 4)]
         [ValidateNotNullOrEmpty()]
-        [System.String] $From,
+        [String] $From,
+
+        # ReplyTo address - use format "Display Name <emailaddr@blah.com>"
+        # or just emailaddr@blah.com
+        [Parameter()]
+        [ValidateNotNullOrEmpty()]
+        [String[]] $ReplyTo,
 
         # DNS or IP address of the SMTP Server
-        [Parameter(Mandatory = $False,
-            Position = 3,
-            ValueFromPipeline = $False,
-            ValueFromPipelineByPropertyName = $False,
-            ValueFromRemainingArguments = $False)]
+        [Parameter(Position = 3)]
         [ValidateNotNullOrEmpty()]
         [Alias("ComputerName")]
-        [System.String] $SmtpServer = $env:PSEmailServer,
+        [String] $SmtpServer = $env:PSEmailServer,
 
         # Mail message priority
-        [Parameter(Mandatory = $False,
-            Position = -2147483648,
-            ValueFromPipeline = $False,
-            ValueFromPipelineByPropertyName = $False,
-            ValueFromRemainingArguments = $False)]
+        [Parameter()]
         [ValidateNotNullOrEmpty()]
         [System.Net.Mail.MailPriority] $Priority,
 
         # Message subject
         [Parameter(Mandatory = $True,
-            Position = 1,
-            ValueFromPipeline = $False,
-            ValueFromPipelineByPropertyName = $False,
-            ValueFromRemainingArguments = $False)]
+            Position = 1)]
         [ValidateNotNullOrEmpty()]
         [Alias("sub")]
-        [System.String] $Subject,
+        [String] $Subject,
 
         # SMIME Sign or SignAndEncrypt
-        [Parameter(Mandatory = $false,
-            Position = -345,
-            ValueFromPipeline = $False,
-            ValueFromPipelineByPropertyName = $False,
-            ValueFromRemainingArguments = $False)]
+        [Parameter()]
         [ValidateSet('Sign', 'SignAndEncrypt')]
         [String] $SMIME,
 
         # To addresses
         [Parameter(Mandatory = $True,
-            Position = 0,
-            ValueFromPipeline = $False,
-            ValueFromPipelineByPropertyName = $False,
-            ValueFromRemainingArguments = $False)]
+            Position = 0)]
         [ValidateNotNullOrEmpty()]
-        [System.String[]] $To,
+        [String[]] $To,
 
         # Credentials for the SMTP Server
-        [Parameter(Mandatory = $False,
-            Position = -2147483648,
-            ValueFromPipeline = $False,
-            ValueFromPipelineByPropertyName = $False,
-            ValueFromRemainingArguments = $False)]
+        [Parameter()]
         [ValidateNotNullOrEmpty()]
         [PSCredential] $Credential,
 
         # Whether the SMTP server requires SSL
-        [Parameter(Mandatory = $False,
-            Position = -2147483648,
-            ValueFromPipeline = $False,
-            ValueFromPipelineByPropertyName = $False,
-            ValueFromRemainingArguments = $False)]
+        [Parameter()]
         [Switch] $UseSsl,
 
         # SMTP Server port number
-        [Parameter(Mandatory = $False,
-            Position = -2147483648,
-            ValueFromPipeline = $False,
-            ValueFromPipelineByPropertyName = $False,
-            ValueFromRemainingArguments = $False)]
+        [Parameter()]
         [ValidateRange(0, 2147483647)]
         [System.Int32] $Port = 25
     )
@@ -260,6 +205,7 @@ function Send-MKMailMessage {
             'To'   = $To
             'Cc'   = $Cc
             'Bcc'  = $Bcc
+            'ReplyTo'  = $ReplyTo
         }
 
         foreach ($Header in $AddressHeaders.Keys) {
